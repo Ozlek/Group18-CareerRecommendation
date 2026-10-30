@@ -1,4 +1,4 @@
 # Group18-CareerRecommendation
-FINAL PROJECT
+FINAL PROJECT - Intelligent Systems
 
 [Career Recommendation] Expert System Using Rule-Based Reasoning for Decision Support
