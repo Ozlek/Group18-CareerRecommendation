@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Recommendation Expert System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <p class="eyebrow">RULE-BASED DECISION SUPPORT</p>
+      <h1>Career Recommendation System</h1>
+      <p class="subtitle">Select the interests, skills, and work preferences that describe you. The system will compare your answers with its career knowledgebase.</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel intro-panel">
+      <div>
+        <h2>Build your profile</h2>
+        <p>Choose all statements that apply. You can leave a category unanswered, but selecting more relevant details can help the system make a more useful comparison.</p>
+      </div>
+      <div class="weight-note">Matching Categories: Interests 30% · Skills 25% · Work preferences 20% · Personality 15% · Work nature 10% (adjustable)</div>
+    </section>
+
+    <form id="career-form" class="panel">
+      <div id="question-groups" class="question-groups">
+        <p class="loading">Loading choices from the knowledgebase…</p>
+      </div>
+      <div class="form-actions">
+        <button type="reset" class="button button-secondary" id="clear-button">Clear selections</button>
+        <button type="submit" class="button button-primary" id="submit-button">Find my career matches</button>
+      </div>
+    </form>
+
+    <section id="results-section" class="results-section" aria-live="polite" hidden>
+      <div class="results-heading">
+        <div>
+          <p class="eyebrow">INFERENCE RESULTS</p>
+          <h2>Your recommended careers</h2>
+          <p id="results-summary" class="muted"></p>
+        </div>
+      </div>
+      <div id="results-list" class="results-list"></div>
+    </section>
+
+    <div id="status-message" class="status-message" role="alert" hidden></div>
+    <p class="disclaimer">The displayed percentage is a weighted match score based on the selected attributes. It is not a probability of employment or career success.</p>
+  </main>
+
+  <footer>
+    <p>Group 18 · Career Recommendation Expert System · Rule-Based Reasoning</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
