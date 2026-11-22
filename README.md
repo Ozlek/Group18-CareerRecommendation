@@ -3,11 +3,11 @@
 A web application using Flask, HTML, CSS, JavaScript, and a rule-based inference engine.
 
 ## Group Members & Roles
-Rafael Castillo - Project Leader (Handles project management & documentation)
-James Diaz - Data Analyst (Creates the knowledge base for the system)
-Kelzo Lumabas - Developer (Creates the inference engine logic & structural foundation of the system)
-Benedict Roxas - Backend Developer (Develops and handles the back-end of the system)
-Fritz Sablan - Frontend Developer (Develops and handles the front-end of the system)
+- Rafael Castillo - Project Leader (Handles project management & documentation)
+- James Diaz - Data Analyst (Creates the knowledge base for the system)
+- Kelzo Lumabas - Developer (Creates the inference engine logic & structural foundation of the system)
+- Benedict Roxas - Backend Developer (Develops and handles the back-end of the system)
+- Fritz Sablan - Frontend Developer (Develops and handles the front-end of the system)
 
 ## Project files
 
