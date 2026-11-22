@@ -71,9 +71,16 @@ def api_recommend():
     if not any(user_profile.values()):
         return jsonify({"error": "Select at least one answer before requesting recommendations."}), 400
 
-    results = infer_careers(user_profile, knowledge_base)
-    return jsonify({
-        "recommendations": results[:5],
-        "total_matches": len(results),
-        "message": "Recommendations are ranked by weighted attribute matches.",
-    })
+    try:
+        results = infer_careers(user_profile, knowledge_base)
+        return jsonify({
+            "recommendations": results[:5],
+            "total_matches": len(results),
+            "message": "Recommendations are ranked by weighted attribute matches.",
+        })
+    except Exception:
+        # Keep technical details in the server log, not in the user response.
+        app.logger.exception("Failed to generate career recommendations")
+        return jsonify({
+            "error": "Unable to generate recommendations. Please try again."
+        }), 500
