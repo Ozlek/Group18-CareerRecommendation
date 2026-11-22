@@ -37,6 +37,7 @@ def api_options():
     """Return valid answer choices for the frontend."""
     return jsonify({
         "categories": CATEGORY_LABELS,
+        "weights": RULE_WEIGHTS,
         "options": get_available_options(),
     })
 

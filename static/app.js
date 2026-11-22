@@ -1,13 +1,29 @@
 const form = document.getElementById("career-form");
 const questionGroups = document.getElementById("question-groups");
 const resultsSection = document.getElementById("results-section");
+const resultsTitle = document.getElementById("results-title");
 const resultsList = document.getElementById("results-list");
 const resultsSummary = document.getElementById("results-summary");
 const statusMessage = document.getElementById("status-message");
 const submitButton = document.getElementById("submit-button");
+const selectedCount = document.getElementById("selected-count");
+const weightNote = document.getElementById("weight-note");
+
+let categoryLabels = {};
+let fieldNames = [];
+
+const ACRONYMS = { sql: "SQL" };
+const SEARCH_THRESHOLD = 12;
 
 function humanize(value) {
-  return value.replaceAll("_", " ").replace(/\b\w/g, character => character.toUpperCase());
+  return value
+    .split("_")
+    .map(word => ACRONYMS[word] || word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function categoryLabel(field) {
+  return categoryLabels[field] || humanize(field);
 }
 
 function showError(message) {
@@ -36,28 +52,101 @@ function createOption(field, value) {
   return label;
 }
 
+function createGroup(field, values, weight, openByDefault) {
+  const group = document.createElement("details");
+  group.className = "question-group";
+  group.dataset.field = field;
+  group.open = openByDefault;
+
+  const summary = document.createElement("summary");
+  const title = document.createElement("span");
+  title.className = "group-title";
+  title.textContent = categoryLabel(field);
+  summary.appendChild(title);
+
+  if (typeof weight === "number") {
+    const weightTag = document.createElement("span");
+    weightTag.className = "group-weight";
+    weightTag.textContent = `${Math.round(weight * 100)}% weight`;
+    summary.appendChild(weightTag);
+  }
+
+  const badge = document.createElement("span");
+  badge.className = "group-badge";
+  badge.hidden = true;
+  summary.appendChild(badge);
+  group.appendChild(summary);
+
+  const fieldset = document.createElement("fieldset");
+  const legend = document.createElement("legend");
+  legend.className = "sr-only";
+  legend.textContent = categoryLabel(field);
+  fieldset.appendChild(legend);
+
+  const list = document.createElement("div");
+  list.className = "option-list";
+  values.forEach(value => list.appendChild(createOption(field, value)));
+
+  if (values.length > SEARCH_THRESHOLD) {
+    const search = document.createElement("input");
+    search.type = "search";
+    search.className = "group-search";
+    search.placeholder = `Search ${categoryLabel(field).toLowerCase()}…`;
+    search.setAttribute("aria-label", `Search ${categoryLabel(field)}`);
+    search.addEventListener("input", () => filterOptions(list, search.value));
+    search.addEventListener("keydown", event => { if (event.key === "Enter") event.preventDefault(); });
+    fieldset.appendChild(search);
+  }
+
+  fieldset.appendChild(list);
+  group.appendChild(fieldset);
+  return group;
+}
+
+function filterOptions(list, query) {
+  const needle = query.trim().toLowerCase();
+  list.querySelectorAll(".option").forEach(option => {
+    option.hidden = needle !== "" && !option.textContent.toLowerCase().includes(needle);
+  });
+}
+
+function updateCounts() {
+  let total = 0;
+  questionGroups.querySelectorAll(".question-group").forEach(group => {
+    const count = group.querySelectorAll("input[type=checkbox]:checked").length;
+    const badge = group.querySelector(".group-badge");
+    badge.textContent = `${count} selected`;
+    badge.hidden = count === 0;
+    total += count;
+  });
+  selectedCount.textContent = total === 1 ? "1 selected" : `${total} selected`;
+}
+
 async function loadOptions() {
   try {
     const response = await fetch("/api/options");
     if (!response.ok) throw new Error("Unable to load the knowledgebase options.");
 
     const data = await response.json();
-    questionGroups.replaceChildren();
+    categoryLabels = data.categories || {};
+    const weights = data.weights || {};
 
-    for (const [field, values] of Object.entries(data.options)) {
-      const section = document.createElement("section");
-      section.className = "question-group";
+    fieldNames = Object.keys(data.options).sort(
+      (a, b) => (weights[b] ?? 0) - (weights[a] ?? 0)
+    );
 
-      const heading = document.createElement("h3");
-      heading.textContent = data.categories[field] || humanize(field);
-
-      const options = document.createElement("div");
-      options.className = "option-list";
-      values.forEach(value => options.appendChild(createOption(field, value)));
-
-      section.append(heading, options);
-      questionGroups.appendChild(section);
+    if (Object.keys(weights).length) {
+      weightNote.textContent = "Matching weights: " + fieldNames
+        .map(field => `${categoryLabel(field)} ${Math.round((weights[field] ?? 0) * 100)}%`)
+        .join(" · ");
+      weightNote.hidden = false;
     }
+
+    questionGroups.replaceChildren();
+    fieldNames.forEach((field, index) => {
+      questionGroups.appendChild(createGroup(field, data.options[field], weights[field], index === 0));
+    });
+    updateCounts();
   } catch (error) {
     questionGroups.textContent = "Could not load answer choices. Check that the Flask server is running.";
     showError(error.message);
@@ -66,7 +155,7 @@ async function loadOptions() {
 
 function collectProfile() {
   const profile = {};
-  for (const field of ["interests", "skills", "work_preferences", "personality", "work_nature"]) {
+  for (const field of fieldNames) {
     profile[field] = Array.from(
       form.querySelectorAll(`input[name="${field}"]:checked`),
       checkbox => checkbox.value
@@ -83,15 +172,33 @@ function addText(parent, tagName, className, text) {
   return element;
 }
 
-function renderRecommendations(data) {
+function humanizeRule(rule) {
+  return rule.replace(/'([^']+)'/g, (_, token) => `'${categoryLabels[token] || humanize(token)}'`);
+}
+
+function countValues(groupedFacts) {
+  return Object.values(groupedFacts).reduce((sum, facts) => sum + facts.length, 0);
+}
+
+function renderRecommendations(data, profile) {
   resultsList.replaceChildren();
   resultsSection.hidden = false;
-  resultsSummary.textContent = `${data.recommendations.length} top recommendation(s) shown from ${data.total_matches} matching career(s).`;
 
-  if (!data.recommendations.length) {
+  const shown = data.recommendations.length;
+  let summary = `${shown} top recommendation(s) shown from ${data.total_matches} matching career(s).`;
+  const topScore = shown ? data.recommendations[0].score : null;
+  const tiedAtTop = data.recommendations.filter(career => career.score === topScore).length;
+  if (tiedAtTop > 1) {
+    summary += " Several careers share the top score. Select more attributes to separate them.";
+  }
+  resultsSummary.textContent = summary;
+
+  if (!shown) {
     addText(resultsList, "p", "muted", "No matching careers were found. Try selecting more attributes.");
     return;
   }
+
+  const selectedTotal = countValues(profile);
 
   data.recommendations.forEach((career, index) => {
     const card = document.createElement("article");
@@ -103,7 +210,11 @@ function renderRecommendations(data) {
     addText(titleBlock, "h3", "result-title", `${index + 1}. ${career.career}`);
     addText(titleBlock, "p", "result-category", career.category);
     top.appendChild(titleBlock);
-    addText(top, "div", "score", `${career.score.toFixed(2)}%`);
+    const scoreBlock = document.createElement("div");
+    scoreBlock.className = "score-block";
+    addText(scoreBlock, "div", "score", `${career.score.toFixed(2)}%`);
+    addText(scoreBlock, "div", "score-meta", `${countValues(career.matched_facts)} of ${selectedTotal} selected matched`);
+    top.appendChild(scoreBlock);
     card.appendChild(top);
 
     const track = document.createElement("div");
@@ -121,24 +232,26 @@ function renderRecommendations(data) {
       facts.forEach(fact => {
         const tag = document.createElement("span");
         tag.className = "tag";
-        tag.textContent = `${humanize(category)}: ${humanize(fact)}`;
+        tag.textContent = `${categoryLabel(category)}: ${humanize(fact)}`;
         tags.appendChild(tag);
       });
     }
     card.appendChild(tags);
 
     const details = document.createElement("details");
-    const summary = document.createElement("summary");
-    summary.textContent = `View activated rules (${career.fired_rules.length})`;
+    const summaryEl = document.createElement("summary");
+    summaryEl.textContent = `View activated rules (${career.fired_rules.length})`;
     const rules = document.createElement("ul");
     rules.className = "rule-list";
-    career.fired_rules.forEach(rule => addText(rules, "li", "", rule));
-    details.append(summary, rules);
+    career.fired_rules.forEach(rule => addText(rules, "li", "", humanizeRule(rule)));
+    details.append(summaryEl, rules);
     card.appendChild(details);
 
     resultsList.appendChild(card);
   });
 }
+
+form.addEventListener("change", updateCounts);
 
 form.addEventListener("submit", async event => {
   event.preventDefault();
@@ -163,8 +276,9 @@ form.addEventListener("submit", async event => {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "The recommendation request failed.");
-    renderRecommendations(data);
+    renderRecommendations(data, profile);
     resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    resultsTitle.focus({ preventScroll: true });
   } catch (error) {
     showError(error.message);
   } finally {
@@ -176,6 +290,10 @@ form.addEventListener("submit", async event => {
 form.addEventListener("reset", () => {
   clearError();
   resultsSection.hidden = true;
+  setTimeout(() => {
+    questionGroups.querySelectorAll(".option").forEach(option => { option.hidden = false; });
+    updateCounts();
+  }, 0);
 });
 
 loadOptions();

@@ -19,9 +19,9 @@
     <section class="panel intro-panel">
       <div>
         <h2>Build your profile</h2>
-        <p>Choose all statements that apply. You can leave a category unanswered, but selecting more relevant details can help the system make a more useful comparison.</p>
+        <p>Open each category and choose every statement that applies. You can leave a category unanswered, but selecting more relevant details helps the system make a more useful comparison.</p>
       </div>
-      <div class="weight-note">Matching Categories: Interests 30% · Skills 25% · Work preferences 20% · Personality 15% · Work nature 10% (adjustable)</div>
+      <div class="weight-note" id="weight-note" hidden></div>
     </section>
 
     <form id="career-form" class="panel">
@@ -29,6 +29,7 @@
         <p class="loading">Loading choices from the knowledgebase…</p>
       </div>
       <div class="form-actions">
+        <p class="selected-count" id="selected-count" aria-live="polite">0 selected</p>
         <button type="reset" class="button button-secondary" id="clear-button">Clear selections</button>
         <button type="submit" class="button button-primary" id="submit-button">Find my career matches</button>
       </div>
@@ -38,7 +39,7 @@
       <div class="results-heading">
         <div>
           <p class="eyebrow">INFERENCE RESULTS</p>
-          <h2>Your recommended careers</h2>
+          <h2 id="results-title" tabindex="-1">Your recommended careers</h2>
           <p id="results-summary" class="muted"></p>
         </div>
       </div>
